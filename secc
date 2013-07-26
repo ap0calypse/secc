@@ -7,6 +7,9 @@ use Getopt::Std;
 use Crypt::CBC;
 use threads;
 
+
+$| = 1;
+
 # version number, author info, whatever ...
 our $VERSION = "0.1";
 
@@ -53,8 +56,8 @@ defined $sock or die "ERROR: Can't connect to port $port on $host: $!\n";
 
 $sock->recv(my $recv_data,1024);    # nickname:
 $sock->send("$name\n");
-$sock->recv($recv_data,1024);    # login message
 
+$sock->flush();
 
 my $cipher = Crypt::CBC->new({   'key'    => 'my secret key',
                                 'cipher' => 'Blowfish',
@@ -68,7 +71,7 @@ my $lsnr = threads->new(\&get_messages)->detach();
 
 sub get_messages {
     while (1) {
-        $sock->recv(my $recv_data,1024);
+        my $recv_data = $sock->getline();
         chomp($recv_data);
         my $plain = $cipher->decrypt($recv_data);
         print $plain, "\n";
@@ -80,5 +83,5 @@ while (1) {
     my $send_data = <STDIN>;
     chomp($send_data);
     my $msg = $cipher->encrypt("$name: $send_data");
-    $sock->send("$msg\n");
+    $sock->say("$msg");
 }
