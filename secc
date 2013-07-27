@@ -71,8 +71,13 @@ my $lsnr = threads->new(\&get_messages)->detach();
 sub get_messages {
     while (1) {
         my $recv_data = $sock->getline();
-        $recv_data =~ s/RALFALF/\n/g;
-        my $plain = $cipher->decrypt($recv_data);
+        
+        # THIS .. my dear friend is neccessary ... because otherwise
+        # the encryption creates newlines sporadically. And THEN, we
+        # read the wrong input lines.
+        $recv_data =~ s/SECC_NEWLINE_REPLACE/\n/g;
+
+        my $plain = $cipher->decrypt_hex($recv_data);
         print $plain;
     }
 }
@@ -80,7 +85,13 @@ sub get_messages {
 
 while (1) {
     my $send_data = <STDIN>;
-    my $msg = $cipher->encrypt("$name: $send_data");
+    my $msg = $cipher->encrypt_hex("$name: $send_data");
+    
+    # THIS .. my dear friend is neccessary ... because otherwise
+    # the encryption creates newlines sporadically. And THEN, we
+    # read the wrong input lines.
     $msg =~ s/\n/RALFALF/g;
+    
+    # say() creates a newline at the end, so we don't need to append it.
     $sock->say($msg);
 }
