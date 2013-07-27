@@ -75,7 +75,7 @@ sub get_messages {
         # THIS .. my dear friend is neccessary ... because otherwise
         # the encryption creates newlines sporadically. And THEN, we
         # read the wrong input lines.
-        $recv_data =~ s/SECC_NEWLINE_REPLACE/\n/g;
+        #$recv_data =~ s/SECC_NEWLINE_REPLACE/\n/g;
 
         my $plain = $cipher->decrypt_hex($recv_data);
         print $plain;
@@ -90,7 +90,7 @@ while (1) {
     # THIS .. my dear friend is neccessary ... because otherwise
     # the encryption creates newlines sporadically. And THEN, we
     # read the wrong input lines.
-    $msg =~ s/\n/RALFALF/g;
+    #$msg =~ s/\n/RALFALF/g;
     
     # say() creates a newline at the end, so we don't need to append it.
     $sock->say($msg);
