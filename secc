@@ -41,6 +41,12 @@ usage() and exit unless (defined $opt_h and defined $opt_n);
 # name var is $opt_n now .. just for clarity
 my $name = $opt_n;
 
+print "Please enter encryption key for conversation: ";
+ReadMode('noecho');
+my $password = ReadLine(0);
+chomp($password);
+ReadMode('restore');
+
 # create the socket
 my $host = $opt_h;
 my $port = 31337;
@@ -60,7 +66,7 @@ $sock->say($name);
 
 
 # create the cipher object
-my $cipher = Crypt::CBC->new({   'key'    => 'my secret key',
+my $cipher = Crypt::CBC->new({   'key'    => $password,
                                 'cipher' => 'Blowfish',
                                 'header' => 'salt',
                                 'padding' => 'standard',
@@ -73,8 +79,15 @@ my $lsnr = threads->new(\&get_messages)->detach();
 sub get_messages {
     while (1) {
         my $recv_data = $sock->getline();
-        my $plain = $cipher->decrypt_hex($recv_data);
-        print $plain;
+        # if we get a correct salted message
+        if ($recv_data =~ m/^53616c746564.+/) {
+            my $plain = $cipher->decrypt_hex($recv_data);
+            print $plain;
+        }
+        # otherwise, its server messages
+        else {
+            print $recv_data;
+        }
     }
 }
 
