@@ -56,7 +56,6 @@ defined $sock or die "ERROR: Can't connect to port $port on $host: $!\n";
 
 $sock->recv(my $recv_data,1024);    # nickname:
 $sock->send("$name\n");
-
 $sock->flush();
 
 my $cipher = Crypt::CBC->new({   'key'    => 'my secret key',
@@ -72,16 +71,16 @@ my $lsnr = threads->new(\&get_messages)->detach();
 sub get_messages {
     while (1) {
         my $recv_data = $sock->getline();
-        chomp($recv_data);
+        $recv_data =~ s/RALFALF/\n/g;
         my $plain = $cipher->decrypt($recv_data);
-        print $plain, "\n";
+        print $plain;
     }
 }
 
 
 while (1) {
     my $send_data = <STDIN>;
-    chomp($send_data);
     my $msg = $cipher->encrypt("$name: $send_data");
-    $sock->say("$msg");
+    $msg =~ s/\n/RALFALF/g;
+    $sock->say($msg);
 }
