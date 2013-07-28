@@ -7,15 +7,13 @@ use Getopt::Std;
 use Crypt::CBC;
 use threads;
 
-
 $| = 1;
 
 # version number, author info, whatever ...
-our $VERSION = "0.1";
+our $VERSION = "0.2";
 
 # vars for hostname and nickname
 our($opt_h, $opt_n);
-
 
 # get options, -h for hostname -n for nickname
 getopt('hn');
@@ -46,6 +44,7 @@ ReadMode('noecho');
 my $password = ReadLine(0);
 chomp($password);
 ReadMode('restore');
+print "\n";
 
 # create the socket
 my $host = $opt_h;
@@ -79,7 +78,7 @@ my $lsnr = threads->new(\&get_messages)->detach();
 sub get_messages {
     while (1) {
         my $recv_data = $sock->getline();
-        # if we get a correct salted message
+        # if we get a correct salted message ... yes. this is he salted header in hex format.
         if ($recv_data =~ m/^53616c746564.+/) {
             my $plain = $cipher->decrypt_hex($recv_data);
             print $plain;
@@ -94,7 +93,13 @@ sub get_messages {
 
 while (1) {
     my $send_data = <STDIN>;
-    my $msg = $cipher->encrypt_hex("$name: $send_data");
+    my $msg;
+    if ($send_data =~ m/^\/([a-z]+) */) {
+        $msg = "/$1";
+    }
+    else {
+        $msg = $cipher->encrypt_hex("$name: $send_data");
+    }
     # say() creates a newline at the end, so we don't need to append it.
     $sock->say($msg);
 }
