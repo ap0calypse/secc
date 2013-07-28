@@ -97,6 +97,7 @@ while (1) {
     if ($send_data =~ m/^\/([a-z]+) */) {
         $msg = "/$1";
     }
+
     else {
         $msg = $cipher->encrypt_hex("$name: $send_data");
     }
