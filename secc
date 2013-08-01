@@ -11,7 +11,7 @@ use Curses::UI;
 $| = 1;
 
 # version number, author info, whatever ...
-our $VERSION = "0.2";
+our $VERSION = "0.3";
 
 # vars for hostname and nickname
 our($opt_h, $opt_n);
@@ -96,13 +96,13 @@ my $max_w = $win->width();
 my $text = $win->add( 
     'text', 'TextViewer',
     -fg => 'white',
-    -title => "<Chat Log>",
+    -title => "< -- log -- > (^R to redraw/clear chat log)",
     -readonly => 1,
     -y => 1,
     -focusable => 0,
     -vscrollbar => 'right',
     -wrapping => 1,
-    -height => int ($max_h - 10),
+    -height => int ($win->height() - 10),
     -intellidraw => 1,
     -border => 1,
 );
@@ -142,42 +142,64 @@ sub update_text {
 }
 
 my $editor = $win->add(
-             'editor', 'TextEditor',
-             -y => ($max_h - 5),
-              -singleline => 0,
-              -border => 1,
-              -intellidraw => 1,
-              -title => " >> $name",
-              -onchange => \&update_text,
-              -regexp => '/^.*$/',
-              -homeonblur => 1,
+    'editor', 'TextEditor',
+    -y => ($win->height() - 5),
+    -singleline => 0,
+    -border => 1,
+    -intellidraw => 1,
+    -title => " >> $name (^Q to quit)",
+    -onchange => \&update_text,
+    -regexp => '/^.*$/',
+    -height => 3,
+    -homeonblur => 1,
 );
 
 &get_messages();
+
+sub redraw {
+    $cui->reset_curses();
+    $text->draw(1);
+}
+
+
+$cui->set_binding(\&redraw, "\cR");
+
 $cui->mainloop();
 
 sub get_messages {
     my $pid = fork();
     if ($pid) {
-        $editor->focus();
         push @pids, $pid;
         return;
     }
     while (1) {
-        if ($sock->connected()) {  ### HERE DRAGONS!!! 
-            my $recv_data = $sock->getline(); ### THIS WAITS AFTER PARENT DIED!!
-            # if we get a correct salted message ... yes. this is he salted header in hex format.
+        if ($sock->connected()) { 
+            my $time = sprintf("%02d:%02d:%02d", (localtime)[2,1,0]);
+            my $recv_data = $sock->getline();
+            # if we get a correct salted message ... yes. this is the salted header in hex format.
             if ($recv_data =~ m/^53616c746564.+/) {
                 my $plain = $cipher->decrypt_hex($recv_data);
-                my $new_text = $text->text() . "$plain";
-                $text->text($new_text);
+
+                my $new_text = $text->get() . "$time | $plain";
+                my @txt = split /\n/, $new_text;
+                if (scalar @txt > $text->height() - 2) {
+                    shift @txt;
+                }
+                my $final = join "\n", @txt;
+                $text->text("$final\n");
                 $text->draw(1);
                 $editor->focus();
                 $win->draw();
             }
             # otherwise, its server messages
             else {
-                $text->text($text->text() . "$recv_data");
+                my $new_text = $text->get() . "$time | $recv_data";
+                my @txt = split /\n/, $new_text;
+                if (scalar @txt > $text->height() - 2) {
+                    shift @txt;
+                }
+                my $final = join "\n", @txt;
+                $text->text("$final\n");
                 $text->draw(1);
                 $editor->focus();
                 $win->draw();
