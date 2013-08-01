@@ -6,6 +6,7 @@ use IO::Socket::INET;
 use Getopt::Std;
 use Crypt::CBC;
 use threads;
+use Curses::UI;
 
 $| = 1;
 
@@ -46,6 +47,10 @@ chomp($password);
 ReadMode('restore');
 print "\n";
 
+my $cui = new Curses::UI ( -clear_on_exit => 0, -color_support => 1);
+my $win = $cui->add('win', 'Window', -border => 1, -title => "secc $VERSION");
+
+
 # create the socket
 my $host = $opt_h;
 my $port = 31337;
@@ -58,6 +63,17 @@ my $sock = IO::Socket::INET->new(
 
 # error checking as usual
 defined $sock or die "ERROR: Can't connect to port $port on $host: $!\n";
+
+my @pids;
+
+sub kill_kids {
+    kill "SIGTERM", @pids;
+    $sock->disconnect();
+    curses_exit();
+    exit(0);
+}
+
+$cui->set_binding(\&kill_kids, "\cQ");
 
 # login procedure
 my $recv_data = $sock->getline(); # nickname ?
@@ -73,26 +89,28 @@ my $cipher = Crypt::CBC->new({   'key'    => $password,
                                 'prepend_iv' => 0}
 );
 
-my $lsnr = threads->new(\&get_messages)->detach();
 
-sub get_messages {
-    while (1) {
-        my $recv_data = $sock->getline();
-        # if we get a correct salted message ... yes. this is he salted header in hex format.
-        if ($recv_data =~ m/^53616c746564.+/) {
-            my $plain = $cipher->decrypt_hex($recv_data);
-            print $plain;
-        }
-        # otherwise, its server messages
-        else {
-            print $recv_data;
-        }
-    }
-}
+my $max_h = $win->height();
+my $max_w = $win->width();
+
+my $text = $win->add( 
+    'text', 'TextViewer',
+    -fg => 'white',
+    -title => "<Chat Log>",
+    -readonly => 1,
+    -y => 1,
+    -focusable => 0,
+    -vscrollbar => 'right',
+    -wrapping => 1,
+    -height => int ($max_h - 10),
+    -intellidraw => 1,
+    -border => 1,
+);
 
 
-while (1) {
-    my $send_data = <STDIN>;
+sub real_upd {
+    my $ref = shift;
+    my $send_data = shift;
     my $msg;
     if ($send_data =~ m/^\/([a-z]+) */) {
         $msg = "/$1";
@@ -104,3 +122,71 @@ while (1) {
     # say() creates a newline at the end, so we don't need to append it.
     $sock->say($msg);
 }
+
+sub update_text {
+    my $ref = shift;
+    my $text = $ref->get();
+    if ($text =~ m/\n/) {
+        if ($text =~ m/\w+/) {
+            &real_upd($ref, $text);
+        }
+        $ref->text("");
+        $ref->draw();
+        $ref->pos(0);
+        $ref->focus();
+    }
+    else {
+        $ref->focus();
+        $ref->draw();
+    }
+}
+
+my $editor = $win->add(
+             'editor', 'TextEditor',
+             -y => ($max_h - 5),
+              -singleline => 0,
+              -border => 1,
+              -intellidraw => 1,
+              -title => " >> $name",
+              -onchange => \&update_text,
+              -regexp => '/^.*$/',
+              -homeonblur => 1,
+);
+
+&get_messages();
+$cui->mainloop();
+
+sub get_messages {
+    my $pid = fork();
+    if ($pid) {
+        $editor->focus();
+        push @pids, $pid;
+        return;
+    }
+    while (1) {
+        if ($sock->connected()) {  ### HERE DRAGONS!!! 
+            my $recv_data = $sock->getline(); ### THIS WAITS AFTER PARENT DIED!!
+            # if we get a correct salted message ... yes. this is he salted header in hex format.
+            if ($recv_data =~ m/^53616c746564.+/) {
+                my $plain = $cipher->decrypt_hex($recv_data);
+                my $new_text = $text->text() . "$plain";
+                $text->text($new_text);
+                $text->draw(1);
+                $editor->focus();
+                $win->draw();
+            }
+            # otherwise, its server messages
+            else {
+                $text->text($text->text() . "$recv_data");
+                $text->draw(1);
+                $editor->focus();
+                $win->draw();
+            }
+        }
+        else {
+            exit;
+        }
+    }
+    exit;
+}
+
