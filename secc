@@ -69,7 +69,7 @@ my @pids;
 sub kill_kids {
     kill "SIGTERM", @pids;
     $sock->disconnect();
-    curses_exit();
+    $cui->exit_curses();
     exit(0);
 }
 
@@ -153,24 +153,21 @@ my $editor = $win->add(
     -height => 3,
     -homeonblur => 1,
 );
-
-&get_messages();
-
+# redraw func, this is a pain in the ass
 sub redraw {
     $cui->reset_curses();
     $text->draw(1);
 }
 
-
+# fork the get_messages func
+&get_messages();
 $cui->set_binding(\&redraw, "\cR");
-
 $cui->mainloop();
 
 sub get_messages {
     my $pid = fork();
     if ($pid) {
-        push @pids, $pid;
-        return;
+        push @pids, $pid and return;
     }
     while (1) {
         if ($sock->connected()) { 
