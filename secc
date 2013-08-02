@@ -50,7 +50,6 @@ print "\n";
 my $cui = new Curses::UI ( -clear_on_exit => 0, -color_support => 1);
 my $win = $cui->add('win', 'Window', -border => 1, -title => "secc $VERSION");
 
-
 # create the socket
 my $host = $opt_h;
 my $port = 31337;
@@ -88,10 +87,6 @@ my $cipher = Crypt::CBC->new({   'key'    => $password,
                                 'regenerate_key' => 1,
                                 'prepend_iv' => 0}
 );
-
-
-my $max_h = $win->height();
-my $max_w = $win->width();
 
 my $text = $win->add( 
     'text', 'TextViewer',
