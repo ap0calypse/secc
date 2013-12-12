@@ -1,3 +1,16 @@
 secc - simple encrypted chat client
 
 sec is a blowfish encrypted chat tool, used to communicate with others in a secure way.
+
+#######################################################################################
+
+dependencies for debian/ubuntu systems:
+
+libcrypt-rijndael-perl
+libcrypt-cbc-perl
+libterm-readkey-perl
+libcurses-perl
+libcurses-ui-perl
+
+
+sudo apt-get update && apt-get install libcrypt-rijndael-perl libcrypt-cbc-perl libterm-readkey-perl libcurses-perl libcurses-ui-perl
