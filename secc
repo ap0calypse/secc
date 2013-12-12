@@ -120,10 +120,12 @@ sub real_upd {
 
 sub update_text {
     my $ref = shift;
-    my $text = $ref->get();
-    if ($text =~ m/\n/) {
-        if ($text =~ m/\w+/) {
-            &real_upd($ref, $text);
+    my $txt = $ref->get();
+    if ($txt =~ m/\n/) {
+        if ($txt =~ m/\w+/) {
+            $text->focus();
+            &real_upd($ref, $txt);
+            $ref->focus();
         }
         $ref->text("");
         $ref->draw();
@@ -146,7 +148,7 @@ my $editor = $win->add(
     -onchange => \&update_text,
     -regexp => '/^.*$/',
     -height => 3,
-    -homeonblur => 1,
+    -homeonblur => 0,
 );
 # redraw func, this is a pain in the ass
 sub redraw {
